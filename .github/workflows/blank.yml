@@ -37,7 +37,7 @@ jobs:
       with:
         draft: true
         prerelease: false
-        name: ${{ inputs.releaseName }}
+        name: v${{ inputs.releaseName }}
         tag_name: v${{ inputs.version }}
         files: Bear-v${{ inputs.version }}.zip
         generate_release_notes: true
