@@ -16,6 +16,9 @@ def replace_sensitive_data(text):
     
     # Replace real names (assuming names start with capital letters)
     text = re.sub(r'\b[A-Z][a-z]*\b', fake.name(), text)
+
+    # Replace domain names
+    text = re.sub(r'\b[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', fake.domain_name(), text)
     
     return text
 
