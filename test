@@ -1,11 +1,1 @@
-| Product                  | API Permissions                                      | Azure AD Roles                   |
-|--------------------------|------------------------------------------------------|----------------------------------|
-| Azure Active Directory   | Directory.Read.All, GroupMember.Read.All,            |                                  |
-|                          | Organization.Read.All, Policy.Read.All,              |                                  |
-|                          | RoleManagement.Read.Directory, User.Read.All,        |                                  |
-|                          | UserAuthenticationMethod.Read.All                    |                                  |
-| Defender for Office 365  | Exchange.ManageAsApp                                 | Global Reader                    |
-| Exchange Online          | Exchange.ManageAsApp                                 | Global Reader                    |
-| Power Platform           |                                                      | Power Platform Administrator     |
-| SharePoint Online        | Site.FullControl.All                                 | Global Reader                    |
-| Microsoft Teams          |                                                      | Global Reader                    |
+🥽 ahh
