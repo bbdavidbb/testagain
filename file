@@ -1,0 +1,24 @@
+. ./PowerShell/ScubaGear/RequiredVersions.ps1
+
+foreach ($Module in $ModuleList) {
+    $ModuleName = $Module.ModuleName
+    $ModuleMaxVersion = $Module.MaximumVersion
+    $ModulesToUpdate = "["
+
+
+    #
+    # skip PnP PowerShell because later versions no longer support PowerShell 5.1
+    #
+    if ($ModuleName -eq 'PnP.PowerShell') {
+        continue
+    }
+
+    $LatestModuleVersion = (Find-Module -Name $ModuleName).Version
+    if ($LatestModuleVersion -gt $ModuleMaxVersion) {
+        Write-Host "$($Module.ModuleName) needs to be updated from $($Module.MaximumVersion) to a maximum version greater than $($LatestModuleVersion)"
+
+        $aliases += '"'
+        $aliases += $value.Trim()
+        $aliases += '",'
+    }
+}
