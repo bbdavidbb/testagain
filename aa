@@ -7,6 +7,14 @@
         LASTEDIT: Oct 26, 2021
 #>
 
+
+# Application Adminstrator Privileged role adminstrator
+#         'Application.ReadWrite.All',
+#        'DelegatedPermissionGrant.ReadWrite.All',
+#        'Directory.Read.All',
+#        'AppRoleAssignment.ReadWrite.All'
+#
+
 try
 {
     "Logging in to Azure..."
