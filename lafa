@@ -12,11 +12,10 @@ total_lines=$(wc -l < "$input_file")
 lines_per_file=$(( (total_lines + num_files - 1) / num_files ))
 
 # Split the file
-split --numeric-suffixes=1 -l "$lines_per_file" "$input_file" "${input_file}_"
+split --suffix-length=1 --numeric-suffixes=1 -l "$lines_per_file" "$input_file" "${input_file}_"
 
 for i in $(seq -w 0 $((num_files - 1)))
 do
     next=$(($i+1))
-    suffix=$(printf "%02d" $next)
-    mv "${input_file}_${suffix}" "passwords_${i}"
+    mv "${input_file}_${next}" "passwords_${i}"
 done
