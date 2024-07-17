@@ -1,0 +1,22 @@
+#!/bin/bash
+
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 <filename> <number_of_files>"
+    exit 1
+fi
+
+input_file="$1"
+num_files="$2"
+
+total_lines=$(wc -l < "$input_file")
+lines_per_file=$(( (total_lines + num_files - 1) / num_files ))
+
+# Split the file
+split --numeric-suffixes=1 -l "$lines_per_file" "$input_file" "${input_file}_"
+
+for i in $(seq -w 0 $((num_files - 1)))
+do
+    next=$(($i+1))
+    suffix=$(printf "%02d" $next)
+    mv "${input_file}_${suffix}" "passwords_${i}"
+done
