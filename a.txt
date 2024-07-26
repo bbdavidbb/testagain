@@ -1,7 +1,10 @@
 """
 This modules contains functions petaining to the baseline markdown documents.
-
 """
+
+tuned_params = [{'kernel': ['rbf'], 'gamma': [1e-1, 1e-2, 1e-3, 1e-4],
+                     'C': [1, 5, 10, 25, 50, 100, 1000]},
+                    {'kernel': ['linear'], 'C': [1, 5, 10, 25, 50, 100, 1000]}]
 
 import re
 import pathlib
