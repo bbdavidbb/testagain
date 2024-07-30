@@ -1,104 +1,123 @@
-"""
-This modules contains functions petaining to the baseline markdown documents.
-"""
+function Set-ScubaGearVersionManifest {
+  #
+  # Replace ScubaGear module version in the ScubaGear.psd1 manifest.
+  #
+  $ManifestPath = '.\PowerShell\ScubaGear\ScubaGear.psd1'
+  $VersionRegex = "\'\d+\.\d+\.\d+\'"
+  $PreviousVersion = ''
+  (Get-Content -Path $ManifestPath) | ForEach-Object {
+    $ModuleVersionRegex = $_ -match "ModuleVersion = $($VersionRegex)"
+    if ($ModuleVersionRegex) {
+      $_ -match $VersionRegex | Out-Null
+      [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'PreviousVersion')]
+      $PreviousVersion = $matches[0] -replace "'", ""
+      $_ -replace $VersionRegex, "'${env:NEW_VERSION_NUMBER}'"
+    }
+    else {
+      $_
+    }
+  } | Set-Content -Path $ManifestPath
+  $PreviousVersion
+}
 
-tuned_params = [{'kernel': ['rbf'], 'gamma': [1e-1, 1e-2, 1e-3, 1e-4],
-                     'C': [1, 5, 10, 25, 50, 100, 1000]},
-                    {'kernel': ['linear'], 'C': [1, 5, 10, 25, 50, 100, 1000]}]
+function Set-ScubaGearVersionDoc {
+  #
+  # Replace ScubaGear module version in
+  # ./docs/installation/github
+  # ./docs/installation/psgallery
+  #
+  $GitHubDocPath = './docs/installation/github.md'
+  $ZipRegex = "ScubaGear-v\d+\.\d+\.\d+"
+  $ZipVerReplace = "ScubaGear-v${env:NEW_VERSION_NUMBER}"
+  (Get-Content -Path $GitHubDocPath) | ForEach-Object {
+    $ZipVerMatch = $_ -match $ZipRegex
+    if ($ZipVerMatch) {
+      $_ -replace $ZipRegex, $ZipVerReplace
+    }
+    else {
+      $_
+    }
+  } | Set-Content -Path $GitHubDocPath
 
-import re
-import pathlib
-from html import escape
-import json
-from pathlib import Path
-
-def read_baseline_docs(baseline_path:pathlib.Path):
-    """
-    This function parses the secure baseline via each product markdown
-    document to align policy with the software baseline.
-
-    """
-
-    baseline_md = [
-        filename.stem for filename in baseline_path.glob('*.md')
-    ]
-
-    products = ['aad', 'defender', 'exo', 'sharepoint', 'powerplatform', 'teams']
+  $PSGalleryDocPath = './docs/installation/psgallery.md'
+  $VersionRegex = "\d+\.\d+\.\d+"
+  $VersionReplace = "${env:NEW_VERSION_NUMBER}"
+  (Get-Content -Path $PSGalleryDocPath) | ForEach-Object {
+    $VersionMatch = $_ -match $VersionRegex
+    if ($VersionMatch) {
+      $_ -replace $VersionRegex, $VersionReplace
+    }
+    else {
+      $_
+    }
+  } | Set-Content -Path $PSGalleryDocPath
+}
 
 
-    # map baseline short name i.e gmail to markdown file name
-    # assumes the product fullname is in the markdown file name
-    prod_to_baselinemd = {}
-    for product in products:
-        for baseline in baseline_md:
-            if product in baseline:
-                prod_to_baselinemd[product] = baseline
+function New-PRBody {
+  #
+  # Create the Pull Request body
+  #
+  $PRTemplatePath = '.\.github\pull_request_template.md'
 
-    # create a dict containing Policy Group and Individual policies
-    baseline_output = {}
-    for product, baselinemd in prod_to_baselinemd.items():
-        baseline_output[product] = []
-        baselinemd_path = baseline_path / f"{baselinemd}.md"
-        with baselinemd_path.open(mode='r',encoding='UTF-8') as baseline_f:
-            md_lines = baseline_f.readlines()
+  $Description = '<!-- Describe the "what" of your changes in detail. -->'
+  $Motivation = '<!-- Why is this change required\? -->'
+  $Testing = '<!-- see how your change affects other areas of the code, etc. -->'
+  $RemoveHeader = '# <!-- Use the title to describe PR changes in the imperative mood --> #'
 
-        # Select the policy group number via "## Number." regex
-        # example line this would match on: ## 1. PolicyGroup
-        line_numbers = [
-            i
-            for i, line in enumerate(md_lines)
-            if re.search(r"^## [0-9]+\.", line)
-        ]
-        groups = [md_lines[line_number] for line_number in line_numbers]
+  $NewDescription = "- This PR was create by a GitHub Action to bump ScubaGear's module version in the manifest and the README.`n" + `
+  "- Please fill out the rest of the template that the Action did not cover. `n"
+  $NewMotivation = "- Bump ScubaGear's module version to v${env:NEW_VERSION_NUMBER} before the next release`n"
+  $NewTesting = "- A human should still check if the version bumping was successful by running ScubaGear.`n"
 
-        for group_name in groups:
-            group = {}
-            group_number = group_name.split(".")[0][3:]
-            group_name = group_name.split(".")[1].strip()
-            group["GroupNumber"] = group_number
-            group["GroupName"] = group_name
-            group["Controls"] = []
+  $PRTemplateContent = (Get-Content -Path $PRTemplatePath) | ForEach-Object {
+    $DescriptionRegex = $_ -match $Description
+    $MotivationRegex = $_ -match $Motivation
+    $TestingRegex = $_ -match $Testing
+    $RemoveHeaderRegex = $_ -match $RemoveHeader # removes unneeded new line
+    if ($DescriptionRegex) {
+      $_ -replace $Description, $NewDescription
+    }
+    elseif ($MotivationRegex) {
+      $_ -replace $Motivation, $NewMotivation
+    }
+    elseif ($TestingRegex) {
+      $_ -replace $Testing, $NewTesting
+    }
+    elseif ($RemoveHeaderRegex) {
+      $_ -replace $RemoveHeader, ""
+    }
+    else {
+      $_ + "`n"
+    }
+  }
+  $PRTemplateContent
+}
+function Set-ScubaGearModuleVersion {
+  <#
+  This
+  #>
 
-            # Search for the line number of all individual Policy Group Ids
-            # There is an assumption here that Policy id is the uppercase version
-            # of the product short name i.e meet => MEET
-            product_upper = product.upper()
+  $PreviousVersion = Set-ScubaGearVersionManifest
+  Set-ScubaGearVersionDoc
+  $PRTemplateContent = New-PRBody
 
-            id_regex = rf"#### [A-Za-z]+\.{product_upper}\.{group_number}\.\d+v\d+\.*\d*\s*$"
-            line_numbers = [
-            i
-            for i, line in enumerate(md_lines)
-            if re.search(id_regex, line)
-            ]
+  # Create the PR
+  $ScubaGearVersionBumpBranch = "scubagear-version-bump-${env:NEW_VERSION_NUMBER}"
+  git config --global user.email "action@github.com"
+  git config --global user.name "GitHub Action"
+  git checkout -b $ScubaGearVersionBumpBranch
+  git add .
+  git commit -m "Update ScubaGear version to ${env:NEW_VERSION_NUMBER}"
+  git push origin $ScubaGearVersionBumpBranch
+  gh pr create `
+  -B main `
+  -H $ScubaGearVersionBumpBranch `
+  --title "Bump ScubaGear module version from v$($PreviousVersion) to v${env:NEW_VERSION_NUMBER}" `
+  --body "${PRTemplateContent}" `
+  --label "version bump"
+}
 
-            # Read all lines of the individual policy
-            for line_number in line_numbers:
-                line_advance = 1
-                value = md_lines[line_number + line_advance].strip()
-
-                # We're done getting the policy text as soon as we encounter
-                # a blank line.
-                while md_lines[line_number + line_advance + 1].strip():
-                    line_advance += 1
-                    value += " " + md_lines[line_number + line_advance].strip()
-
-                value = escape(value)
-                line = md_lines[line_number].strip()[5:]
-
-                # Check if policy has been deleted
-                deleted = False
-                if line.endswith("X"):
-                    deleted = True
-                    line = line[:-1]
-                    value = "[DELETED] " + value
-
-                group["Controls"].append({"Id": line, "Value": value, "Deleted": deleted})
-
-            baseline_output[product].append(group)
-    return baseline_output
-
-if __name__ == '__main__':
-    baselines = Path('./baselines').resolve()
-    b = read_baseline_docs(baselines)
-
-    print(json.dumps(b, indent=4))
+Export-ModuleMember -Function @(
+  'Set-ScubaGearModuleVersion'
+)
