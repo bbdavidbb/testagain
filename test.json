@@ -1,0 +1,39 @@
+{
+    "catalog": {
+        "uuid": "fd9c6c87-717a-400f-b504-eaa3886d1340",
+        "metadata": {
+            "title": "CISA SCuBA Microsoft 365 Secure Configuration Baselines",
+            "last-modified": "2024-08-20T17:40:57.190577-07:00",
+            "version": "1.0",
+            "oscal-version": "1.1.2"
+        },
+        "back-matter": {
+            "resources": [
+                {
+                    "uuid": "49ba87da-80e3-47c3-8178-b10fd52c2d45",
+                    "title": " Secure Cloud Business Applications (SCuBA) Project ",
+                    "citation": {
+                        "text": "CISA. (2024). Secure Cloud Business Applications (SCUBA) project.  `Cybersecurity and Infrastructure Security Agency (CISA). "
+                    },
+                    "rlinks": [
+                        {
+                            "href": "https://www.cisa.gov/scuba"
+                        }
+                    ]
+                },
+                {
+                    "uuid": "f54a5ebc-c4ad-4571-abb0-dbbbce42a26d",
+                    "title": "ScubaGear GitHub repository",
+                    "citation": {
+                        "text": "CISA. (2024). cisagov/ScubaGear: Automation to assess the state of your M365 tenant against Cisa's baselines. GitHub."
+                    },
+                    "rlinks": [
+                        {
+                            "href": "https://github.com/cisagov/ScubaGear"
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}
