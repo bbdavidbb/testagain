@@ -1,16 +1,60 @@
 {
     "catalog": {
-        "uuid": "fd9c6c87-717a-400f-b504-eaa3886d1340",
+        "uuid": "e0880f3a-4cc6-4c7f-8fc8-b4f2458c0919",
         "metadata": {
             "title": "CISA SCuBA Microsoft 365 Secure Configuration Baselines",
-            "last-modified": "2024-08-20T17:40:57.190577-07:00",
+            "last-modified": "2024-08-20T20:14:55.770927-07:00",
             "version": "1.0",
             "oscal-version": "1.1.2"
         },
+        "groups": [
+            {
+                "id": "aad",
+                "class": "family",
+                "title": "Azure Active Directory",
+                "groups": []
+            },
+            {
+                "id": "defender",
+                "class": "family",
+                "title": "Microsoft 365 Defender",
+                "groups": []
+            },
+            {
+                "id": "exo",
+                "class": "family",
+                "title": "Exchange Online",
+                "groups": []
+            },
+            {
+                "id": "powerbi",
+                "class": "family",
+                "title": "Power BI",
+                "groups": []
+            },
+            {
+                "id": "powerplatform",
+                "class": "family",
+                "title": "Microsoft Power Platform",
+                "groups": []
+            },
+            {
+                "id": "sharepoint",
+                "class": "family",
+                "title": "SharePoint Online",
+                "groups": []
+            },
+            {
+                "id": "teams",
+                "class": "family",
+                "title": "Microsoft Teams",
+                "groups": []
+            }
+        ],
         "back-matter": {
             "resources": [
                 {
-                    "uuid": "49ba87da-80e3-47c3-8178-b10fd52c2d45",
+                    "uuid": "885a1378-a15a-40f7-a15e-d068e22cdf43",
                     "title": " Secure Cloud Business Applications (SCuBA) Project ",
                     "citation": {
                         "text": "CISA. (2024). Secure Cloud Business Applications (SCUBA) project.  `Cybersecurity and Infrastructure Security Agency (CISA). "
@@ -22,10 +66,10 @@
                     ]
                 },
                 {
-                    "uuid": "f54a5ebc-c4ad-4571-abb0-dbbbce42a26d",
+                    "uuid": "3efaa54c-af60-4936-8785-7f1e0d8a139c",
                     "title": "ScubaGear GitHub repository",
                     "citation": {
-                        "text": "CISA. (2024). cisagov/ScubaGear: Automation to assess the state of your M365 tenant against Cisa's baselines. GitHub."
+                        "text": "CISA. (2024). cisagov/ScubaGear: Automation to assess the state of your M365 tenant against CISA's baselines. GitHub."
                     },
                     "rlinks": [
                         {
