@@ -1,1 +1,0 @@
-latest_opa_version=$(curl -s https://api.github.com/repos/open-policy-agent/opa/releases/latest | grep '"tag_name"' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
