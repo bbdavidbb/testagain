@@ -1,0 +1,105 @@
+PUT your-index-name
+{
+  "mappings": {
+    "properties": {
+      "time": {
+        "type": "date"
+      },
+      "MetaData": {
+        "properties": {
+          "TenantId": { "type": "keyword" },
+          "DisplayName": { "type": "keyword" },
+          "DomainName": { "type": "keyword" },
+          "ProductSuite": { "type": "keyword" },
+          "ProductsAssessed": { "type": "keyword" },
+          "ProductAbbreviationMapping": {
+            "type": "object",
+            "enabled": true
+          },
+          "Tool": { "type": "keyword" },
+          "ToolVersion": { "type": "keyword" },
+          "TimestampZulu": { "type": "date" },
+          "ReportUUID": { "type": "keyword" }
+        }
+      },
+      "Raw": {
+        "properties": {
+          "risky_applications": {
+            "type": "nested",
+            "properties": {
+              "ObjectId": {
+                "type": "nested",
+                "properties": {
+                  "Application": { "type": "keyword" },
+                  "ServicePrincipal": { "type": "keyword" }
+                }
+              },
+              "AppId": { "type": "keyword" },
+              "DisplayName": { "type": "keyword" },
+              "IsMultiTenantEnabled": { "type": "boolean" },
+              "KeyCredentials": {
+                "type": "nested",
+                "properties": {
+                  "KeyId": { "type": "keyword" },
+                  "DisplayName": { "type": "text" },
+                  "StartDateTime": { "type": "date", "format": "epoch_millis||strict_date_optional_time" },
+                  "EndDateTime": { "type": "date", "format": "epoch_millis||strict_date_optional_time" },
+                  "IsFromApplication": { "type": "boolean" }
+                }
+              },
+              "PasswordCredentials": { "type": "object", "enabled": false },
+              "FederatedCredentials": { "type": "object", "enabled": false },
+              "RiskyPermissions": {
+                "type": "nested",
+                "properties": {
+                  "RoleId": { "type": "keyword" },
+                  "RoleDisplayName": { "type": "text" },
+                  "ApplicationDisplayName": { "type": "keyword" },
+                  "IsAdminConsented": { "type": "boolean" }
+                }
+              }
+            }
+          },
+          "risky_third_party_service_principals": {
+            "type": "nested",
+            "properties": {
+              "ObjectId": { "type": "keyword" },
+              "AppId": { "type": "keyword" },
+              "DisplayName": { "type": "keyword" },
+              "KeyCredentials": {
+                "type": "nested",
+                "properties": {
+                  "KeyId": { "type": "keyword" },
+                  "DisplayName": { "type": "text" },
+                  "StartDateTime": { "type": "date", "format": "epoch_millis||strict_date_optional_time" },
+                  "EndDateTime": { "type": "date", "format": "epoch_millis||strict_date_optional_time" },
+                  "IsFromApplication": { "type": "boolean" }
+                }
+              },
+              "PasswordCredentials": {
+                "type": "nested",
+                "properties": {
+                  "KeyId": { "type": "keyword" },
+                  "DisplayName": { "type": "text" },
+                  "StartDateTime": { "type": "date", "format": "epoch_millis||strict_date_optional_time" },
+                  "EndDateTime": { "type": "date", "format": "epoch_millis||strict_date_optional_time" },
+                  "IsFromApplication": { "type": "boolean" }
+                }
+              },
+              "FederatedCredentials": { "type": "object", "enabled": false },
+              "RiskyPermissions": {
+                "type": "nested",
+                "properties": {
+                  "RoleId": { "type": "keyword" },
+                  "RoleDisplayName": { "type": "text" },
+                  "ApplicationDisplayName": { "type": "keyword" },
+                  "IsAdminConsented": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
