@@ -1,0 +1,54 @@
+import dlt
+from pyspark.sql.functions import col, input_file_name
+import re
+
+# List of S3 bucket paths (data streams)
+bucket_paths = [
+    "s3://bucket1/data/",
+    "s3://bucket2/data/",
+    "s3://bucket3/data/"
+]
+
+# Function to process data from each S3 bucket with the bucket and prefix info
+def autoloader_stream_with_source(bucket_path):
+    # Read the data using Autoloader (streaming)
+    df = (
+        spark.readStream
+        .format("cloudFiles")
+        .option("cloudFiles.format", "parquet")  # specify file format (parquet, csv, etc.)
+        .option("cloudFiles.inferColumnTypes", "true")  # Schema inference
+        .load(bucket_path)
+    )
+    
+    # Add column indicating the source file's bucket and prefix
+    df_with_source = df.withColumn("source_file", input_file_name()) \
+        .withColumn(
+            "bucket_name", 
+            # Regex to extract bucket name from the file path (assumes S3 path structure)
+            (col("source_file").rlike("s3://([^/]+)/")).cast("string")
+        ) \
+        .withColumn(
+            "prefix",
+            # Regex to extract the prefix (directory structure) from the file path
+            (col("source_file").rlike("s3://[^/]+/([^/]+)")).cast("string")
+        )
+    
+    return df_with_source
+
+# Read from all S3 paths and merge the data
+df_stream = None
+for bucket_path in bucket_paths:
+    if df_stream is None:
+        df_stream = autoloader_stream_with_source(bucket_path)
+    else:
+        df_stream = df_stream.union(autoloader_stream_with_source(bucket_path))
+
+# Example transformations (if needed)
+df_stream_transformed = df_stream.select("column1", "column2", "column3", "bucket_name", "prefix")
+
+# Define a Delta Live Table for streaming
+@dlt.table(
+    comment="A streaming table that ingests data from multiple S3 buckets with source information"
+)
+def final_streaming_table():
+    return df_stream_transform
