@@ -1,0 +1,11 @@
+services = limits_client.list_services(tenancy_id).data
+
+for service in services:
+    print(f"=== {service.name} ===")
+
+    limits = limits_client.list_limit_values(
+        compartment_id=tenancy_id,
+        service_name=service.name
+    ).data
+
+    print(f"{len(limits)} limits found")
