@@ -1,0 +1,13 @@
+import oci
+
+config = oci.config.from_file()
+identity = oci.identity.IdentityClient(config)
+
+compartment_id = config["tenancy"]
+
+quotas = identity.list_quotas(
+    compartment_id=compartment_id
+).data
+
+for quota in quotas:
+    print(quota.name)
