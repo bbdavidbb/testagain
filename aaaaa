@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+
+import oci
+from oci.pagination import list_call_get_all_results
+
+
+def get_identity_client(config):
+    return oci.identity.IdentityClient(config)
+
+
+def get_limits_client(config):
+    return oci.limits.LimitsClient(config)
+
+
+def get_all_compartments(identity_client, tenancy_id):
+    compartments = list_call_get_all_results(
+        identity_client.list_compartments,
+        tenancy_id,
+        compartment_id_in_subtree=True,
+        access_level="ACCESSIBLE"
+    ).data
+
+    tenancy = identity_client.get_tenancy(tenancy_id).data
+
+    compartment_map = {
+        tenancy.id: tenancy.name
+    }
+
+    for compartment in compartments:
+        if compartment.lifecycle_state == "ACTIVE":
+            compartment_map[compartment.id] = compartment.name
+
+    return compartment_map
+
+
+def get_quotas(limits_client, compartment_id):
+    try:
+        quotas = list_call_get_all_results(
+            limits_client.list_quotas,
+            compartment_id=compartment_id
+        ).data
+        return quotas
+    except oci.exceptions.ServiceError as e:
+        print(f"Failed to retrieve quotas from {compartment_id}: {e.message}")
+        return []
+
+
+def main():
+    config = oci.config.from_file()
+    tenancy_id = config["tenancy"]
+
+    identity_client = get_identity_client(config)
+    limits_client = get_limits_client(config)
+
+    print("Discovering compartments...")
+
+    compartments = get_all_compartments(
+        identity_client,
+        tenancy_id
+    )
+
+    print(f"Found {len(compartments)} compartments\n")
+
+    total_quotas = 0
+
+    for compartment_id, compartment_name in sorted(
+        compartments.items(),
+        key=lambda x: x[1].lower()
+    ):
+        quotas = get_quotas(
+            limits_client,
+            compartment_id
+        )
+
+        if not quotas:
+            continue
+
+        print("=" * 80)
+        print(f"COMPARTMENT: {compartment_name}")
+        print(f"OCID       : {compartment_id}")
+        print("=" * 80)
+
+        for quota in quotas:
+            total_quotas += 1
+
+            print(f"Quota Name : {quota.name}")
+            print(f"Description: {quota.description}")
+            print(f"State      : {quota.lifecycle_state}")
+
+            if quota.statements:
+                print("Statements:")
+                for statement in quota.statements:
+                    print(f"  {statement}")
+
+            print("-" * 80)
+
+    print(f"\nTotal quotas found: {total_quotas}")
+
+
+if __name__ == "__main__":
+    main()
