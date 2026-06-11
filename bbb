@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
+import json
 import oci
 from oci.pagination import list_call_get_all_results
 
 SERVICE_NAME = "compute"
+OUTPUT_FILE = "oci_compute_limits.json"
 
 
 def main():
-    # Load OCI config from ~/.oci/config
     config = oci.config.from_file()
 
     tenancy_id = config["tenancy"]
@@ -15,31 +16,29 @@ def main():
     identity_client = oci.identity.IdentityClient(config)
     limits_client = oci.limits.LimitsClient(config)
 
-    # Get availability domains
     ads = identity_client.list_availability_domains(
         compartment_id=tenancy_id
     ).data
 
-    print(f"Tenancy: {tenancy_id}")
-    print(f"Service: {SERVICE_NAME}")
-    print(f"Availability Domains: {[ad.name for ad in ads]}")
-    print()
+    results = {
+        "tenancy_id": tenancy_id,
+        "service": SERVICE_NAME,
+        "availability_domains": [ad.name for ad in ads],
+        "limits": []
+    }
 
-    # Get all limit values for the root compartment
     limits = list_call_get_all_results(
         limits_client.list_limit_values,
         compartment_id=tenancy_id,
         service_name=SERVICE_NAME
     ).data
 
-    if not limits:
-        print("No limits found.")
-        return
-
     for limit in limits:
-        print("=" * 100)
-        print(f"Limit Name : {limit.name}")
-        print(f"Limit Value: {limit.value}")
+        limit_entry = {
+            "name": limit.name,
+            "value": limit.value,
+            "availability": []
+        }
 
         for ad in ads:
             try:
@@ -51,39 +50,33 @@ def main():
                 ).data
 
                 available = availability.available
-                used = None
 
+                used = None
                 if (
-                    limit.value is not None
+                    isinstance(limit.value, (int, float))
                     and available is not None
-                    and isinstance(limit.value, (int, float))
                 ):
                     used = limit.value - available
 
-                print(f"\n  AD: {ad.name}")
-                print(f"    Available: {available}")
-
-                if used is not None:
-                    print(f"    Used     : {used}")
+                limit_entry["availability"].append({
+                    "availability_domain": ad.name,
+                    "available": available,
+                    "used": used
+                })
 
             except oci.exceptions.ServiceError as e:
-                print(f"\n  AD: {ad.name}")
-                print(f"    Error: {e.message}")
+                limit_entry["availability"].append({
+                    "availability_domain": ad.name,
+                    "error": e.message
+                })
 
-    print("\nDone")
+        results["limits"].append(limit_entry)
+
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+        json.dump(results, f, indent=2)
+
+    print(f"Wrote {len(results['limits'])} limits to {OUTPUT_FILE}")
 
 
 if __name__ == "__main__":
-    main()import oci
-
-config = oci.config.from_file()
-identity = oci.identity.IdentityClient(config)
-
-compartment_id = config["tenancy"]
-
-quotas = identity.list_quotas(
-    compartment_id=compartment_id
-).data
-
-for quota in quotas:
-    print(quota.name)
+    main()
