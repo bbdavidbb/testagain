@@ -2,13 +2,166 @@
 
 import json
 import oci
+from collections import defaultdict
 from oci.pagination import list_call_get_all_results
 
-SERVICE_NAME = "compute"
-OUTPUT_FILE = "oci_compute_limits.json"
+SERVICES_FILE = "services.txt"
+OUTPUT_FILE = "oci_limits_inventory.json"
+
+
+def load_services(path):
+    with open(path, "r", encoding="utf-8") as f:
+        return [
+            line.strip()
+            for line in f
+            if line.strip() and not line.strip().startswith("#")
+        ]
+
+
+def serialize_oci_model(obj):
+    result = {}
+
+    if hasattr(obj, "attribute_map"):
+        for field in obj.attribute_map:
+            try:
+                value = getattr(obj, field)
+
+                if isinstance(value, (str, int, float, bool, list, dict)) or value is None:
+                    result[field] = value
+                else:
+                    result[field] = str(value)
+
+            except Exception as ex:
+                result[field] = f"<serialization error: {ex}>"
+
+    return result
+
+
+def calculate_used(limit_value, available):
+    if (
+        isinstance(limit_value, (int, float))
+        and available is not None
+    ):
+        return limit_value - available
+
+    return None
+
+
+def extract_error(exc):
+    return {
+        "status": getattr(exc, "status", None),
+        "code": getattr(exc, "code", None),
+        "message": getattr(exc, "message", str(exc))
+    }
+
+
+def try_regional_availability(
+    limits_client,
+    tenancy_id,
+    service_name,
+    limit_name
+):
+    return limits_client.get_resource_availability(
+        service_name=service_name,
+        limit_name=limit_name,
+        compartment_id=tenancy_id
+    ).data
+
+
+def try_ad_availability(
+    limits_client,
+    tenancy_id,
+    service_name,
+    limit_name,
+    ad_name
+):
+    return limits_client.get_resource_availability(
+        service_name=service_name,
+        limit_name=limit_name,
+        compartment_id=tenancy_id,
+        availability_domain=ad_name
+    ).data
+
+
+def collect_availability(
+    limits_client,
+    tenancy_id,
+    service_name,
+    limit_name,
+    ads
+):
+    try:
+        response = try_regional_availability(
+            limits_client,
+            tenancy_id,
+            service_name,
+            limit_name
+        )
+
+        return {
+            "scope": "REGIONAL",
+            "results": [
+                {
+                    "available": response.available
+                }
+            ]
+        }
+
+    except oci.exceptions.ServiceError as exc:
+
+        message = (
+            getattr(exc, "message", "") or ""
+        ).lower()
+
+        ad_required = (
+            "availabilitydomain is required" in message
+            or "availability domain is required" in message
+        )
+
+        if not ad_required:
+            return {
+                "scope": "UNKNOWN",
+                "results": [
+                    {
+                        "error": extract_error(exc)
+                    }
+                ]
+            }
+
+    ad_results = []
+
+    for ad in ads:
+
+        try:
+
+            response = try_ad_availability(
+                limits_client,
+                tenancy_id,
+                service_name,
+                limit_name,
+                ad.name
+            )
+
+            ad_results.append({
+                "availability_domain": ad.name,
+                "available": response.available
+            })
+
+        except oci.exceptions.ServiceError as exc:
+
+            ad_results.append({
+                "availability_domain": ad.name,
+                "error": extract_error(exc)
+            })
+
+    return {
+        "scope": "AD",
+        "results": ad_results
+    }
 
 
 def main():
+
     config = oci.config.from_file()
 
     tenancy_id = config["tenancy"]
@@ -20,62 +173,122 @@ def main():
         compartment_id=tenancy_id
     ).data
 
-    results = {
+    services = load_services(SERVICES_FILE)
+
+    summary = defaultdict(int)
+
+    inventory = {
         "tenancy_id": tenancy_id,
-        "service": SERVICE_NAME,
         "availability_domains": [ad.name for ad in ads],
-        "limits": []
+        "summary": {},
+        "services": {}
     }
 
-    limits = list_call_get_all_results(
-        limits_client.list_limit_values,
-        compartment_id=tenancy_id,
-        service_name=SERVICE_NAME
-    ).data
+    for service_name in services:
 
-    for limit in limits:
-        limit_entry = {
-            "name": limit.name,
-            "value": limit.value,
-            "availability": []
+        print(f"Processing {service_name}")
+
+        service_record = {
+            "definitions": {},
+            "limits": []
         }
 
-        for ad in ads:
-            try:
-                availability = limits_client.get_resource_availability(
-                    service_name=SERVICE_NAME,
-                    limit_name=limit.name,
-                    compartment_id=tenancy_id,
-                    availability_domain=ad.name
-                ).data
+        try:
 
-                available = availability.available
+            definitions = list_call_get_all_results(
+                limits_client.list_limit_definitions,
+                compartment_id=tenancy_id,
+                service_name=service_name
+            ).data
 
-                used = None
-                if (
-                    isinstance(limit.value, (int, float))
-                    and available is not None
-                ):
-                    used = limit.value - available
+            summary["definition_count"] += len(definitions)
 
-                limit_entry["availability"].append({
-                    "availability_domain": ad.name,
-                    "available": available,
-                    "used": used
-                })
+            for definition in definitions:
 
-            except oci.exceptions.ServiceError as e:
-                limit_entry["availability"].append({
-                    "availability_domain": ad.name,
-                    "error": e.message
-                })
+                service_record["definitions"][
+                    definition.name
+                ] = serialize_oci_model(definition)
 
-        results["limits"].append(limit_entry)
+        except Exception as exc:
 
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-        json.dump(results, f, indent=2)
+            service_record["definition_error"] = str(exc)
 
-    print(f"Wrote {len(results['limits'])} limits to {OUTPUT_FILE}")
+        try:
+
+            limits = list_call_get_all_results(
+                limits_client.list_limit_values,
+                compartment_id=tenancy_id,
+                service_name=service_name
+            ).data
+
+            summary["limit_count"] += len(limits)
+
+            for limit in limits:
+
+                availability = collect_availability(
+                    limits_client,
+                    tenancy_id,
+                    service_name,
+                    limit.name,
+                    ads
+                )
+
+                limit_record = {
+                    "name": limit.name,
+                    "value": limit.value,
+                    "scope": availability["scope"],
+                    "definition": service_record[
+                        "definitions"
+                    ].get(limit.name),
+                    "availability": []
+                }
+
+                for result in availability["results"]:
+
+                    entry = dict(result)
+
+                    if (
+                        "available" in entry
+                        and entry["available"] is not None
+                    ):
+                        entry["used"] = calculate_used(
+                            limit.value,
+                            entry["available"]
+                        )
+
+                    if "error" in entry:
+                        summary["availability_errors"] += 1
+                    else:
+                        summary["availability_success"] += 1
+
+                    limit_record["availability"].append(entry)
+
+                service_record["limits"].append(limit_record)
+
+        except Exception as exc:
+
+            service_record["limits_error"] = str(exc)
+
+        inventory["services"][service_name] = service_record
+
+    inventory["summary"] = dict(summary)
+
+    with open(
+        OUTPUT_FILE,
+        "w",
+        encoding="utf-8"
+    ) as fp:
+
+        json.dump(
+            inventory,
+            fp,
+            indent=2,
+            sort_keys=False
+        )
+
+    print()
+    print(f"Wrote inventory to {OUTPUT_FILE}")
+    print(json.dumps(inventory["summary"], indent=2))
 
 
 if __name__ == "__main__":
