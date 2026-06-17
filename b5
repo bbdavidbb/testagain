@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+
+import json
+import oci
+from oci.pagination import list_call_get_all_results
+
+OUTPUT_FILE = "oci_regions_vcns.json"
+
+
+def get_compartments(identity_client, tenancy_id):
+
+    tenancy = identity_client.get_tenancy(
+        tenancy_id
+    ).data
+
+    compartments = [{
+        "id": tenancy_id,
+        "name": tenancy.name,
+        "description": "Root Compartment"
+    }]
+
+    child_compartments = list_call_get_all_results(
+        identity_client.list_compartments,
+        compartment_id=tenancy_id,
+        compartment_id_in_subtree=True,
+        access_level="ACCESSIBLE"
+    ).data
+
+    for compartment in child_compartments:
+
+        if compartment.lifecycle_state != "ACTIVE":
+            continue
+
+        compartments.append({
+            "id": compartment.id,
+            "name": compartment.name,
+            "description": compartment.description
+        })
+
+    return compartments
+
+
+def main():
+
+    config = oci.config.from_file()
+
+    tenancy_id = config["tenancy"]
+
+    identity_client = oci.identity.IdentityClient(config)
+
+    compartments = get_compartments(
+        identity_client,
+        tenancy_id
+    )
+
+    regions = identity_client.list_region_subscriptions(
+        tenancy_id
+    ).data
+
+    results = {
+        "tenancy_id": tenancy_id,
+        "compartments": compartments,
+        "regions": {}
+    }
+
+    print(
+        f"Found {len(compartments)} compartments"
+    )
+
+    for region in regions:
+
+        region_name = region.region_name
+
+        print(
+            f"Scanning region: {region_name}"
+        )
+
+        regional_config = dict(config)
+        regional_config["region"] = region_name
+
+        network_client = oci.core.VirtualNetworkClient(
+            regional_config
+        )
+
+        region_record = {
+            "vcn_count": 0,
+            "vcns": []
+        }
+
+        for compartment in compartments:
+
+            try:
+
+                vcns = list_call_get_all_results(
+                    network_client.list_vcns,
+                    compartment_id=compartment["id"]
+                ).data
+
+                for vcn in vcns:
+
+                    region_record["vcns"].append({
+                        "id": vcn.id,
+                        "name": vcn.display_name,
+                        "compartment_id": compartment["id"],
+                        "compartment_name": compartment["name"],
+                        "cidr_blocks": vcn.cidr_blocks,
+                        "dns_label": vcn.dns_label,
+                        "lifecycle_state": vcn.lifecycle_state,
+                        "time_created": str(
+                            vcn.time_created
+                        )
+                    })
+
+            except Exception:
+                pass
+
+        region_record["vcn_count"] = len(
+            region_record["vcns"]
+        )
+
+        results["regions"][
+            region_name
+        ] = region_record
+
+    with open(
+        OUTPUT_FILE,
+        "w",
+        encoding="utf-8"
+    ) as f:
+
+        json.dump(
+            results,
+            f,
+            indent=2
+        )
+
+    print()
+    print(
+        f"Wrote results to {OUTPUT_FILE}"
+    )
+
+
+if __name__ == "__main__":
+    main()
